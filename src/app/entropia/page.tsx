@@ -16,7 +16,9 @@ interface EntropyFlags {
 }
 
 // Mismos tamaños aproximados de alfabeto que usa /fortaleza, para que la
-// estimación sea consistente en toda la aplicación.
+// estimación sea consistente en toda la aplicación. "symbol" cubre
+// únicamente los 32 símbolos ASCII imprimibles (0x21-0x7E menos letras y
+// dígitos) — ver isAsciiSymbol más abajo.
 const CLASS_SIZES = { lower: 26, upper: 26, number: 10, symbol: 32 } as const;
 
 function alphabetSizeFromFlags(flags: EntropyFlags): number {
@@ -28,13 +30,55 @@ function alphabetSizeFromFlags(flags: EntropyFlags): number {
   return size;
 }
 
+// Símbolo ASCII imprimible: código entre 0x21 y 0x7E que no sea letra ni
+// dígito. Deliberadamente NO incluye nada fuera de ASCII: un carácter
+// Unicode (acentos, kanji, emoji...) nunca cuenta como uno de estos ~32
+// símbolos, para no inflar el modelo con un alfabeto inventado.
+function isAsciiSymbol(char: string): boolean {
+  const code = char.codePointAt(0) ?? 0;
+  return code >= 0x21 && code <= 0x7e && !/[A-Za-z0-9]/.test(char);
+}
+
+// Cualquier carácter fuera del rango ASCII (0x00-0x7F), incluyendo
+// acentos, alfabetos no latinos y emoji.
+function hasNonAsciiChars(password: string): boolean {
+  return /[^\x00-\x7F]/.test(password);
+}
+
 function detectFlags(password: string): EntropyFlags {
   return {
     lower: /[a-z]/.test(password),
     upper: /[A-Z]/.test(password),
     number: /[0-9]/.test(password),
-    symbol: /[^A-Za-z0-9]/.test(password),
+    symbol: Array.from(password).some(isAsciiSymbol),
   };
+}
+
+// Cuenta solo los caracteres que el modelo puede clasificar con
+// confianza (letras ASCII, dígitos o símbolos ASCII). Los caracteres
+// Unicode se excluyen de este conteo a propósito: es la longitud que de
+// verdad entra en la fórmula H = L × log2(N), no la longitud total.
+function countModeledAsciiChars(password: string): number {
+  return Array.from(password).filter(
+    (char) => /[A-Za-z0-9]/.test(char) || isAsciiSymbol(char)
+  ).length;
+}
+
+// Longitud "visual" aproximada: intenta contar grapheme clusters (lo que
+// una persona percibiría como un solo carácter, incluyendo emoji
+// compuestos como 👨‍💻) con Intl.Segmenter cuando el navegador lo
+// soporta. Si no está disponible, usa Array.from (puntos de código) como
+// respaldo razonable — mejor que password.length, pero no perfecto.
+function countGraphemes(value: string): number {
+  if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
+    try {
+      const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+      return Array.from(segmenter.segment(value)).length;
+    } catch {
+      // Soporte parcial o error inesperado: seguimos al respaldo.
+    }
+  }
+  return Array.from(value).length;
 }
 
 function log2(value: number): number {
@@ -106,8 +150,8 @@ function describeAlphabet(flags: EntropyFlags): string {
   if (flags.lower) parts.push(`${CLASS_SIZES.lower} minúsculas`);
   if (flags.upper) parts.push(`${CLASS_SIZES.upper} mayúsculas`);
   if (flags.number) parts.push(`${CLASS_SIZES.number} números`);
-  if (flags.symbol) parts.push(`~${CLASS_SIZES.symbol} símbolos`);
-  if (parts.length === 0) return "No hay ningún tipo de carácter seleccionado.";
+  if (flags.symbol) parts.push(`~${CLASS_SIZES.symbol} símbolos ASCII`);
+  if (parts.length === 0) return "No hay ningún tipo de carácter ASCII reconocido.";
   return `Alfabeto estimado: ${parts.join(" + ")}.`;
 }
 
@@ -118,12 +162,21 @@ const CHARSET_LABELS: { key: keyof EntropyFlags; label: string }[] = [
   { key: "symbol", label: "Símbolos ASCII (~32)" },
 ];
 
+const UNICODE_WARNING =
+  "Esta contraseña contiene caracteres Unicode. La estimación de entropía usa un modelo simplificado para caracteres ASCII, por lo que no se muestra una precisión matemática completa para esos caracteres.";
+
 function EntropyBreakdown({
   length,
   flags,
+  lengthLabel = "Longitud (L)",
+  visualLength,
+  hasUnicode = false,
 }: {
   length: number;
   flags: EntropyFlags;
+  lengthLabel?: string;
+  visualLength?: number;
+  hasUnicode?: boolean;
 }) {
   const alphabetSize = alphabetSizeFromFlags(flags);
   const entropy = computeEntropyBits(length, alphabetSize);
@@ -156,11 +209,26 @@ function EntropyBreakdown({
         />
       </div>
 
+      {hasUnicode && (
+        <p
+          role="note"
+          className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm leading-6 text-amber-200"
+        >
+          {UNICODE_WARNING}
+        </p>
+      )}
+
       <dl className="mt-5 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
         <div>
-          <dt className="text-zinc-500">Longitud (L)</dt>
+          <dt className="text-zinc-500">{lengthLabel}</dt>
           <dd className="font-mono text-zinc-100">{length}</dd>
         </div>
+        {typeof visualLength === "number" && visualLength !== length && (
+          <div>
+            <dt className="text-zinc-500">Longitud visual aproximada</dt>
+            <dd className="font-mono text-zinc-100">{visualLength}</dd>
+          </div>
+        )}
         <div>
           <dt className="text-zinc-500">Alfabeto (N)</dt>
           <dd className="font-mono text-zinc-100">{alphabetSize}</dd>
@@ -172,13 +240,13 @@ function EntropyBreakdown({
         <div>
           <dt className="text-zinc-500">Combinaciones (aprox.)</dt>
           <dd className="font-mono text-zinc-100">
-            {alphabetSize > 0 ? `≈ 10^${exponent.toFixed(2)}` : "—"}
+            {alphabetSize > 0 && length > 0 ? `≈ 10^${exponent.toFixed(2)}` : "—"}
           </dd>
         </div>
       </dl>
 
       <p className="mt-4 text-sm text-zinc-400">
-        {describeAlphabet(flags)} Con {length} caracteres:{" "}
+        {describeAlphabet(flags)} Con {length} caracteres modelados:{" "}
         <span className="font-mono text-zinc-200">
           H = {length} × log2({alphabetSize}) ≈ {entropy.toFixed(2)} bits
         </span>
@@ -196,12 +264,19 @@ export default function EntropiaPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const hasPassword = password.length > 0;
-  // Longitud "visual": Array.from cuenta puntos de código Unicode, no
-  // unidades UTF-16, así que un emoji no se cuenta como 2 caracteres.
-  const passwordLength = useMemo(() => Array.from(password).length, [password]);
   const passwordFlags = useMemo(() => detectFlags(password), [password]);
+  // Longitud realmente usada en la fórmula: solo caracteres ASCII que el
+  // modelo sabe clasificar (letras, dígitos, símbolos ASCII).
+  const asciiLength = useMemo(
+    () => countModeledAsciiChars(password),
+    [password]
+  );
+  // Longitud "visual" aproximada, solo para mostrar contexto al usuario.
+  const visualLength = useMemo(() => countGraphemes(password), [password]);
+  const hasUnicode = useMemo(() => hasNonAsciiChars(password), [password]);
 
-  // Modo 2: calculadora teórica, sin ninguna contraseña de por medio.
+  // Modo 2: calculadora teórica, sin ninguna contraseña de por medio (no
+  // hay entrada de texto, así que no hay nada Unicode que considerar).
   const [theoLength, setTheoLength] = useState(16);
   const [theoFlags, setTheoFlags] = useState<EntropyFlags>({
     lower: true,
@@ -245,6 +320,15 @@ export default function EntropiaPage() {
           ocurre en tu navegador: esta página no usa fetch, no guarda nada
           en localStorage ni en cookies, y tu contraseña nunca se imprime en
           consola ni se envía a ningún lado.
+        </p>
+
+        <p className="mt-3 max-w-xl text-sm text-zinc-500">
+          ¿Prefieres generar una contraseña aleatoria en vez de analizar
+          una?{" "}
+          <Link href="/generador" className="text-zinc-300 underline underline-offset-4 hover:text-white">
+            Usa el generador
+          </Link>
+          .
         </p>
 
         {/* Selector de modo */}
@@ -332,7 +416,13 @@ export default function EntropiaPage() {
               aria-live="polite"
             >
               {hasPassword ? (
-                <EntropyBreakdown length={passwordLength} flags={passwordFlags} />
+                <EntropyBreakdown
+                  length={asciiLength}
+                  flags={passwordFlags}
+                  lengthLabel="Caracteres ASCII contados"
+                  visualLength={visualLength}
+                  hasUnicode={hasUnicode}
+                />
               ) : (
                 <p className="text-zinc-400">
                   Escribe una contraseña arriba para ver su entropía estimada

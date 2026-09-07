@@ -65,14 +65,17 @@ export default function Home() {
             </p>
           </Link>
 
-          <article className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
+          <Link
+            href="/entropia"
+            className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 transition hover:border-zinc-700 hover:bg-zinc-900"
+          >
             <div className="mb-4 text-3xl">📊</div>
             <h2 className="text-xl font-semibold">Calculadora de entropía</h2>
             <p className="mt-3 text-zinc-400">
               Aprende cuánta incertidumbre tiene una contraseña y por qué eso
               importa para su seguridad.
             </p>
-          </article>
+          </Link>
         </section>
 
         <section

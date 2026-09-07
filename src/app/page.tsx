@@ -53,14 +53,17 @@ export default function Home() {
             </p>
           </Link>
 
-          <article className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
+          <Link
+            href="/fortaleza"
+            className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 transition hover:border-zinc-700 hover:bg-zinc-900"
+          >
             <div className="mb-4 text-3xl">🛡️</div>
             <h2 className="text-xl font-semibold">Medidor de fortaleza</h2>
             <p className="mt-3 text-zinc-400">
               Analiza características básicas de una contraseña y detecta
               posibles debilidades.
             </p>
-          </article>
+          </Link>
 
           <article className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
             <div className="mb-4 text-3xl">📊</div>

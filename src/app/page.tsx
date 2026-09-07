@@ -1,8 +1,40 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/JsonLd";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site-config";
+
+const TITLE = "Herramientas gratuitas de ciberseguridad y privacidad";
+const DESCRIPTION =
+  "CyberTools MX reúne un generador de contraseñas, un medidor de fortaleza y una calculadora de entropía. Todo corre en tu navegador, sin enviar tus contraseñas a ningún servidor.";
+
+export const metadata: Metadata = {
+  title: TITLE,
+  description: DESCRIPTION,
+  alternates: { canonical: SITE_URL },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: SITE_URL,
+  },
+  twitter: {
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+};
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: SITE_NAME,
+          url: SITE_URL,
+          description: SITE_DESCRIPTION,
+          inLanguage: "es-MX",
+        }}
+      />
       <section className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-24">
         <div className="max-w-3xl">
           <span className="mb-6 inline-block rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-300">
@@ -78,6 +110,52 @@ export default function Home() {
           </Link>
         </section>
 
+        <section className="mt-20">
+          <h2 className="text-2xl font-semibold">
+            ¿Qué puedes hacer con CyberTools MX?
+          </h2>
+
+          <div className="mt-6 grid gap-8 text-sm leading-6 text-zinc-400 md:grid-cols-3">
+            <div>
+              <h3 className="font-semibold text-zinc-200">
+                Generador de contraseñas
+              </h3>
+              <p className="mt-2">
+                Crea contraseñas aleatorias configurando longitud y tipo de
+                carácter. Usa{" "}
+                <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-300">
+                  crypto.getRandomValues()
+                </code>{" "}
+                y garantiza que cada categoría elegida aparezca al menos una
+                vez.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-zinc-200">
+                Medidor de fortaleza
+              </h3>
+              <p className="mt-2">
+                Analiza una contraseña existente: longitud, variedad de
+                caracteres, repeticiones, secuencias obvias y coincidencias
+                con contraseñas filtradas comúnmente, sin salir de tu
+                navegador.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-zinc-200">
+                Calculadora de entropía
+              </h3>
+              <p className="mt-2">
+                Estima cuántos bits de incertidumbre tiene una contraseña,
+                con un modo teórico configurable y una explicación clara de
+                los límites de esa estimación.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <section
           id="privacidad"
           className="mt-20 rounded-2xl border border-zinc-800 bg-zinc-900/30 p-8"
@@ -87,10 +165,10 @@ export default function Home() {
           </h2>
 
           <p className="mt-4 max-w-3xl leading-7 text-zinc-400">
-            Las herramientas que desarrollaremos estarán diseñadas para
-            procesar información sensible localmente en el navegador cuando
-            sea técnicamente posible. No necesitamos conocer tu contraseña
-            para ayudarte a evaluarla.
+            Las herramientas de CyberTools MX están diseñadas para procesar
+            información sensible localmente en tu navegador. No necesitamos
+            conocer tu contraseña para ayudarte a generarla, evaluar su
+            fortaleza o estimar su entropía.
           </p>
         </section>
       </section>

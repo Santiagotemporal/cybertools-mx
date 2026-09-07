@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CyberTools MX
 
-## Getting Started
+Herramientas gratuitas de privacidad y ciberseguridad que funcionan
+directamente en tu navegador. Siempre que es técnicamente posible, tus
+contraseñas nunca salen de tu dispositivo: no hay `fetch`, no se guardan en
+`localStorage` ni en cookies, y no se imprimen en la consola.
 
-First, run the development server:
+**Sitio en producción:** https://cybertools-mx.vercel.app
+
+## Herramientas actuales
+
+- **Generador de contraseñas** (`/generador`) — genera contraseñas
+  criptográficamente aleatorias con `crypto.getRandomValues()`, garantizando
+  al menos un carácter de cada categoría seleccionada.
+- **Medidor de fortaleza** (`/fortaleza`) — analiza longitud, variedad de
+  caracteres, repeticiones, secuencias obvias y coincidencias con
+  contraseñas filtradas comúnmente, todo localmente.
+- **Calculadora de entropía** (`/entropia`) — estima los bits de entropía de
+  una contraseña real o de una hipotética configurable, con una advertencia
+  clara sobre los límites del modelo.
+
+## Stack
+
+- [Next.js](https://nextjs.org) (App Router)
+- [TypeScript](https://www.typescriptlang.org)
+- [Tailwind CSS](https://tailwindcss.com)
+
+## Privacidad
+
+El procesamiento de contraseñas ocurre en el navegador del usuario. Las
+páginas de herramientas son Client Components que no usan `fetch`,
+`localStorage`, cookies ni `console.log` sobre datos sensibles, y no envían
+nada mediante formularios.
+
+## Desarrollo
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm.cmd install
+npm.cmd run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Build de producción
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm.cmd run build
+npm.cmd run start
+```
 
-## Learn More
+## Lint
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm.cmd run lint
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## SEO técnico
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `src/app/sitemap.ts` genera `/sitemap.xml` con las páginas públicas.
+- `src/app/robots.ts` genera `/robots.txt` permitiendo el rastreo completo.
+- `src/app/manifest.ts` genera `/manifest.webmanifest`.
+- `src/app/icon.tsx` y `src/app/apple-icon.tsx` generan el favicon por código.
+- La URL base del sitio vive en un solo lugar: `src/lib/site-config.ts`.
 
-## Deploy on Vercel
+## Despliegue
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Desplegado en el plan gratuito de [Vercel](https://vercel.com), rama de
+producción `main`.

@@ -5,8 +5,9 @@
 
 export const SITE_NAME = "CyberTools MX";
 
-// TODO: se actualiza al valor real inmediatamente después del primer
-// despliegue en Vercel (ver README para el histórico de esta URL).
+// URL pública real de producción (Vercel, plan gratuito). Si en el futuro
+// se conecta un dominio propio, este es el único valor que hay que
+// actualizar.
 export const SITE_URL = "https://cybertools-mx.vercel.app";
 
 export const SITE_DESCRIPTION =

@@ -29,10 +29,16 @@ const DEFAULT_SELECTED: Record<CharsetKey, boolean> = {
   symbols: false,
 };
 
+function selectedCategoryCharsets(
+  selection: Record<CharsetKey, boolean>
+): string[] {
+  return CHARSET_LABELS.filter(({ key }) => selection[key]).map(
+    ({ key }) => CHARSETS[key]
+  );
+}
+
 function buildCharset(selection: Record<CharsetKey, boolean>): string {
-  return CHARSET_LABELS.filter(({ key }) => selection[key])
-    .map(({ key }) => CHARSETS[key])
-    .join("");
+  return selectedCategoryCharsets(selection).join("");
 }
 
 /**
@@ -44,8 +50,12 @@ function secureRandomInt(max: number): number {
   if (max <= 0) return 0;
 
   const array = new Uint32Array(1);
-  // Mayor múltiplo de `max` que cabe en 32 bits, para rechazo uniforme.
-  const limit = Math.floor(0xffffffff / max) * max;
+  // Uint32Array entrega 2^32 valores posibles (0 a 2^32 - 1). El límite de
+  // rechazo debe ser el mayor múltiplo de `max` que no exceda 2^32 (no
+  // 0xffffffff = 2^32 - 1): usar 2^32 evita descartes innecesarios cuando
+  // `max` divide exactamente a 2^32 (p. ej. 2, 4, 16, 256, ...), sin que
+  // esto afecte la uniformidad en ningún caso.
+  const limit = Math.floor(0x100000000 / max) * max;
 
   let value: number;
   do {
@@ -56,16 +66,45 @@ function secureRandomInt(max: number): number {
   return value % max;
 }
 
-function generatePassword(length: number, charset: string): string {
-  if (!charset || length <= 0) return "";
+/**
+ * Baraja `items` in-place con Fisher-Yates usando secureRandomInt, es
+ * decir, con la misma fuente criptográfica que el resto del generador
+ * (nunca Math.random). Necesario para que los caracteres obligatorios de
+ * cada categoría no queden siempre en las primeras posiciones.
+ */
+function secureShuffle<T>(items: T[]): T[] {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = secureRandomInt(i + 1);
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  return items;
+}
 
-  let result = "";
-  for (let i = 0; i < length; i++) {
-    const index = secureRandomInt(charset.length);
-    result += charset[index];
+function generatePassword(
+  length: number,
+  selection: Record<CharsetKey, boolean>
+): string {
+  const categories = selectedCategoryCharsets(selection);
+  if (categories.length === 0 || length <= 0) return "";
+
+  const combined = categories.join("");
+  const chars: string[] = [];
+
+  // Garantiza al menos un carácter de cada categoría seleccionada. Si
+  // `length` fuera menor que el número de categorías (no ocurre con los
+  // límites actuales de la UI, pero se cubre por robustez), se corta sin
+  // exceder la longitud pedida en vez de fallar o producir de más.
+  for (const category of categories) {
+    if (chars.length >= length) break;
+    chars.push(category[secureRandomInt(category.length)]);
   }
 
-  return result;
+  // Completa el resto de la longitud con el charset combinado.
+  for (let i = chars.length; i < length; i++) {
+    chars.push(combined[secureRandomInt(combined.length)]);
+  }
+
+  return secureShuffle(chars).join("");
 }
 
 export default function GeneradorPage() {
@@ -80,8 +119,8 @@ export default function GeneradorPage() {
   const hasCharset = charset.length > 0;
 
   const regenerate = useCallback(() => {
-    setPassword(hasCharset ? generatePassword(length, charset) : "");
-  }, [charset, hasCharset, length]);
+    setPassword(hasCharset ? generatePassword(length, selected) : "");
+  }, [selected, hasCharset, length]);
 
   // Genera la primera contraseña una vez montado en el navegador. El
   // cálculo se difiere a un callback (en vez de llamarse de forma
@@ -103,14 +142,14 @@ export default function GeneradorPage() {
     const nextSelected = { ...selected, [key]: !selected[key] };
     setSelected(nextSelected);
 
-    const nextCharset = buildCharset(nextSelected);
-    setPassword(nextCharset ? generatePassword(length, nextCharset) : "");
+    const nextHasCharset = buildCharset(nextSelected).length > 0;
+    setPassword(nextHasCharset ? generatePassword(length, nextSelected) : "");
   }
 
   function handleLengthChange(value: number) {
     const clamped = Math.min(MAX_LENGTH, Math.max(MIN_LENGTH, value));
     setLength(clamped);
-    setPassword(hasCharset ? generatePassword(clamped, charset) : "");
+    setPassword(hasCharset ? generatePassword(clamped, selected) : "");
   }
 
   async function handleCopy() {
